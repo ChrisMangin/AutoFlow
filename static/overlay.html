@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AutoFlow HUD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #12151c;
+      color: #e2e8f0;
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .hud {
+      width: 320px;
+      background: #1a1f2e;
+      border: 1px solid #2a3045;
+      border-radius: 16px;
+      padding: 18px 20px 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+    }
+
+    /* ── Header ── */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .dot {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      background: #3d4455;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+    .dot.rec    { background: #ff3b30; animation: pulse 1s infinite; }
+    .dot.paused { background: #ff9f0a; }
+    .dot.play   { background: #32d74b; animation: pulse 1s infinite; }
+    .dot.step   { background: #5ac8fa; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .hud-label {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      flex: 1;
+    }
+    .hud-close {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #2e3345;
+      border: none;
+      color: #8892a4;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .hud-close:hover { background: #ff3b30; color: #fff; }
+
+    /* ── Progress strip ── */
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      min-height: 18px;
+    }
+    .step-badge {
+      font-size: 11px;
+      color: #8892a4;
+      white-space: nowrap;
+    }
+    .prog-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: #2a3045;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .prog-bar {
+      height: 100%;
+      background: #4f8ef7;
+      border-radius: 2px;
+      transition: width .3s;
+      width: 0%;
+    }
+    .prog-bar.rec  { background: #ff3b30; }
+    .prog-bar.play { background: #32d74b; }
+    .prog-bar.step { background: #5ac8fa; }
+
+    /* ── Buttons ── */
+    .btns {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+    .ob {
+      flex: 1;
+      min-width: 70px;
+      padding: 7px 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter .12s, transform .08s;
+      white-space: nowrap;
+    }
+    .ob:hover  { filter: brightness(1.15); }
+    .ob:active { transform: scale(.96); }
+
+    .ob-pause  { background: #ff9f0a; color: #000; }
+    .ob-resume { background: #32d74b; color: #000; }
+    .ob-stop   { background: #ff3b30; color: #fff; }
+    .ob-step   { background: #5ac8fa; color: #000; }
+    .ob-rec    { background: #ff3b30; color: #fff; }
+    .ob-ghost  { background: #2a3045; color: #e2e8f0; border: 1px solid #3a4055; }
+
+    /* ── Divider ── */
+    .hud-divider {
+      height: 1px;
+      background: #2a3045;
+      margin: 12px 0;
+    }
+
+    /* ── Footer ── */
+    .hud-footer {
+      font-size: 10px;
+      color: #454d60;
+      text-align: center;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="hud-header">
+      <div class="dot" id="dot"></div>
+      <span class="hud-label" id="label">AutoFlow</span>
+      <button class="hud-close" id="btn-close" title="Close overlay">✕</button>
+    </div>
+
+    <div class="progress-row">
+      <span class="step-badge" id="sub"></span>
+      <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+    </div>
+
+    <div class="btns" id="btns"></div>
+
+    <div class="hud-footer">AutoFlow · localhost:5000</div>
+  </div>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+const socket = io();
+let _state     = { record: "idle", play: "idle" };
+let _stepCount = 0;
+let _playIdx   = -1;
+let _playTotal = 0;
+
+socket.on("app_state",     s => { _state = s; render(); });
+socket.on("step",          () => { _stepCount++; render(); });
+socket.on("play_progress", m => { _playIdx = m.index; render(); });
+socket.on("play_paused",   () => { render(); });
+socket.on("play_done",     () => { _playIdx = -1; render(); });
+socket.on("play_error",    () => { render(); });
+
+async function api(url) { await fetch(url, { method: "POST" }); }
+
+function render() {
+  const dot     = document.getElementById("dot");
+  const label   = document.getElementById("label");
+  const sub     = document.getElementById("sub");
+  const btns    = document.getElementById("btns");
+  const bar     = document.getElementById("prog-bar");
+  const rec     = _state.record;
+  const play    = _state.play;
+
+  dot.className = "";
+  let labelText = "Ready", subText = "", buttons = [], barClass = "", barWidth = 0;
+
+  if (rec === "recording") {
+    dot.className = "rec";
+    labelText     = "● Recording";
+    subText       = `${_stepCount} step${_stepCount !== 1 ? "s" : ""} captured`;
+    barClass      = "rec";
+    barWidth      = 100;   // full while recording
+    buttons = [
+      { cls: "ob-pause",  label: "⏸ Pause",  fn: () => api("/api/record/pause") },
+      { cls: "ob-stop",   label: "⏹ Stop",   fn: () => api("/api/record/stop")  },
+    ];
+  } else if (rec === "paused") {
+    dot.className = "paused";
+    labelText     = "⏸ Paused";
+    subText       = `${_stepCount} step${_stepCount !== 1 ? "s" : ""} so far`;
+    buttons = [
+      { cls: "ob-resume", label: "▶ Resume", fn: () => api("/api/record/resume") },
+      { cls: "ob-stop",   label: "⏹ Stop",  fn: () => api("/api/record/stop")   },
+    ];
+  } else if (play === "playing") {
+    dot.className = "play";
+    labelText     = "▶ Playing";
+    if (_playIdx >= 0 && _playTotal > 0) {
+      subText   = `Step ${_playIdx + 1} of ${_playTotal}`;
+      barWidth  = Math.round((_playIdx + 1) / _playTotal * 100);
+    } else if (_playIdx >= 0) {
+      subText   = `Step ${_playIdx + 1}`;
+    }
+    barClass = "play";
+    buttons = [
+      { cls: "ob-pause", label: "⏸ Pause", fn: () => api("/api/play/pause") },
+      { cls: "ob-step",  label: "⏭ Step",  fn: () => api("/api/play/step")  },
+      { cls: "ob-stop",  label: "⏹ Stop",  fn: () => api("/api/play/stop")  },
+    ];
+  } else if (play === "paused") {
+    dot.className = "step";
+    labelText     = "⏸ Paused";
+    subText       = _playIdx >= 0 ? `At step ${_playIdx + 1}` : "Ready to step";
+    barClass      = "step";
+    barWidth      = _playIdx >= 0 && _playTotal > 0
+                      ? Math.round((_playIdx + 1) / _playTotal * 100) : 0;
+    buttons = [
+      { cls: "ob-resume", label: "▶ Resume", fn: () => api("/api/play/resume") },
+      { cls: "ob-step",   label: "⏭ Step",  fn: () => api("/api/play/step")   },
+      { cls: "ob-stop",   label: "⏹ Stop",  fn: () => api("/api/play/stop")   },
+    ];
+  } else {
+    labelText = "AutoFlow — Ready";
+    buttons   = [{ cls: "ob-ghost", label: "Close", fn: closeOverlay }];
+  }
+
+  label.textContent = labelText;
+  sub.textContent   = subText;
+  bar.className     = "prog-bar" + (barClass ? " " + barClass : "");
+  bar.style.width   = barWidth + "%";
+
+  btns.innerHTML = "";
+  buttons.forEach(b => {
+    const el       = document.createElement("button");
+    el.className   = "ob " + b.cls;
+    el.textContent = b.label;
+    el.onclick     = b.fn;
+    btns.appendChild(el);
+  });
+}
+
+function closeOverlay() {
+  fetch("/api/overlay/hide", { method: "POST" }).catch(() => {});
+  window.close();
+}
+
+document.getElementById("btn-close").onclick = closeOverlay;
+
+// Hide dim layer if user closes window via OS chrome (X button)
+window.addEventListener("beforeunload", () => {
+  navigator.sendBeacon("/api/overlay/hide");
+});
+
+render();
+</script>
+</body>
+</html>
