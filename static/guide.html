@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AutoFlow — User Guide</title>
+  <style>
+    :root {
+      --bg:#0d1117; --surface:#161b22; --surface2:#1c2333; --surface3:#222d3e;
+      --border:#2a3548; --accent:#4f8ef7; --accent-h:#6ba3ff;
+      --success:#3ec97a; --warn:#e0a050; --danger:#e05252; --purple:#a78bfa;
+      --text:#e2e8f0; --text-dim:#8892a4; --text-muted:#525f75;
+      --radius:7px; --max-w:820px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.7}
+    body{padding:0 0 60px}
+
+    /* ── Top bar */
+    .top-bar{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:14px 24px;display:flex;align-items:center;gap:12px;
+      position:sticky;top:0;z-index:10;
+    }
+    .top-bar .logo{font-size:17px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px}
+    .top-bar .logo svg{width:22px;height:22px}
+    .top-bar h1{font-size:15px;font-weight:600;color:var(--text-dim)}
+    .top-bar .back{
+      margin-left:auto;padding:6px 14px;background:transparent;
+      border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text-dim);font-size:12.5px;cursor:pointer;text-decoration:none;
+    }
+    .top-bar .back:hover{background:var(--surface2);color:var(--text)}
+
+    /* ── Layout */
+    .wrap{max-width:var(--max-w);margin:0 auto;padding:32px 24px}
+
+    /* ── TOC sidebar (desktop) */
+    @media(min-width:960px){
+      .page{display:grid;grid-template-columns:200px 1fr;gap:40px;max-width:1060px;margin:0 auto;padding:32px 24px}
+      .wrap{padding:0;max-width:none}
+      nav.toc{position:sticky;top:72px;align-self:start;height:calc(100vh - 90px);overflow-y:auto}
+      .content{min-width:0}
+    }
+    @media(max-width:959px){
+      nav.toc{display:none}
+      .page{max-width:var(--max-w);margin:0 auto;padding:32px 24px}
+    }
+
+    /* ── TOC */
+    nav.toc ul{list-style:none;padding:0}
+    nav.toc li{margin:0}
+    nav.toc a{
+      display:block;padding:4px 10px;border-radius:5px;
+      font-size:12.5px;color:var(--text-dim);text-decoration:none;
+      transition:background .1s,color .1s;
+    }
+    nav.toc a:hover{background:var(--surface2);color:var(--text)}
+    nav.toc .toc-section{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);padding:14px 10px 4px;margin-top:4px}
+    nav.toc a.sub{padding-left:20px;font-size:12px}
+
+    /* ── Typography */
+    h2{font-size:22px;font-weight:700;color:var(--text);margin:40px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+    h3{font-size:15px;font-weight:600;color:var(--accent-h);margin:24px 0 8px}
+    h4{font-size:13px;font-weight:600;color:var(--text-dim);margin:16px 0 4px;text-transform:uppercase;letter-spacing:.5px}
+    p{margin:8px 0;color:var(--text)}
+    p.dim{color:var(--text-dim);font-size:13px}
+    ul,ol{padding-left:20px;margin:8px 0}
+    li{margin:4px 0;color:var(--text)}
+    strong{color:var(--text);font-weight:600}
+    code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:12.5px;font-family:"Consolas","Courier New",monospace;color:var(--accent-h)}
+    pre{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;overflow-x:auto;margin:12px 0}
+    pre code{background:none;border:none;padding:0;font-size:12.5px;color:var(--text)}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    /* ── Callouts */
+    .callout{
+      display:flex;gap:12px;border-radius:var(--radius);padding:12px 16px;margin:14px 0;
+      font-size:13px;line-height:1.6;
+    }
+    .callout.tip{background:#0d2a1f;border:1px solid #1a5c38;color:#7ee8a2}
+    .callout.warn{background:#2d1f00;border:1px solid #8b5c00;color:#f5c842}
+    .callout.info{background:#0a1f3d;border:1px solid #1a3d7a;color:#7ab8ff}
+    .callout .ci{font-size:18px;flex-shrink:0;line-height:1.4}
+    .callout p{color:inherit;margin:0}
+
+    /* ── Step reference cards */
+    .step-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:14px 0}
+    .step-card{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      padding:12px 14px;
+    }
+    .step-card .sc-hdr{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+    .step-card .sc-icon{font-size:18px}
+    .step-card .sc-name{font-weight:600;font-size:13px;color:var(--text)}
+    .step-card .sc-desc{font-size:12px;color:var(--text-dim);line-height:1.5}
+
+    /* ── Key badges */
+    kbd{
+      display:inline-block;background:var(--surface3);border:1px solid var(--border);
+      border-bottom-width:2px;border-radius:4px;padding:1px 6px;
+      font-size:11.5px;font-family:inherit;color:var(--text);
+    }
+
+    /* ── Table */
+    table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+    th{background:var(--surface2);color:var(--text-dim);font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+    td{padding:7px 12px;border-bottom:1px solid var(--surface2);vertical-align:top}
+    tr:last-child td{border-bottom:none}
+    td:first-child{color:var(--accent-h);font-weight:500;white-space:nowrap}
+
+    /* ── Screenshot placeholder */
+    .hero{
+      background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      padding:28px;text-align:center;margin:20px 0;color:var(--text-muted);font-size:13px;
+    }
+    .hero .hi{font-size:48px;margin-bottom:8px}
+
+    /* ── Section anchor offset */
+    [id]{scroll-margin-top:72px}
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+    AutoFlow
+  </div>
+  <h1>User Guide</h1>
+  <a class="back" href="/" onclick="window.close();return false;">✕ Close</a>
+</div>
+
+<div class="page">
+
+  <!-- TOC -->
+  <nav class="toc">
+    <ul>
+      <li><div class="toc-section">Getting Started</div></li>
+      <li><a href="#overview">What is AutoFlow?</a></li>
+      <li><a href="#interface">Interface Overview</a></li>
+      <li><div class="toc-section">Core Workflow</div></li>
+      <li><a href="#recording">Recording</a></li>
+      <li><a href="#playback">Playback</a></li>
+      <li><a href="#saving">Saving & Loading</a></li>
+      <li><div class="toc-section">Building Steps</div></li>
+      <li><a href="#add-step">Add Step Palette</a></li>
+      <li><a href="#automation">Automation Steps</a></li>
+      <li><a href="#filesweb">Files & Web</a></li>
+      <li><div class="toc-section">Advanced</div></li>
+      <li><a href="#variables">Variables</a></li>
+      <li><a href="#logic">Logic &amp; Loops</a></li>
+      <li><a href="#scripts">Run Script</a></li>
+      <li><a href="#export">Export &amp; Import</a></li>
+      <li><div class="toc-section">Tips</div></li>
+      <li><a href="#tips">Tips &amp; Tricks</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main content -->
+  <div class="content">
+
+    <!-- ── Overview ────────────────────────────────────────── -->
+    <h2 id="overview">What is AutoFlow?</h2>
+    <p>AutoFlow is a desktop automation tool that lets you <strong>record mouse &amp; keyboard actions</strong>, edit them into reliable workflows, and <strong>play them back</strong> hands-free. No scripting required for most tasks — just record, review, and run.</p>
+    <p>Workflows are stored as plain JSON files so they're portable and version-controllable. AutoFlow runs entirely locally — nothing leaves your machine.</p>
+
+    <div class="callout info">
+      <span class="ci">ℹ️</span>
+      <p>AutoFlow lives in your system tray when the main window is closed. Double-click the tray icon or right-click it to reopen, record a new workflow, or replay the last one.</p>
+    </div>
+
+    <!-- ── Interface ───────────────────────────────────────── -->
+    <h2 id="interface">Interface Overview</h2>
+    <table>
+      <tr><th>Area</th><th>Purpose</th></tr>
+      <tr><td>Titlebar</td><td>Workflow name, New / Save buttons, this Guide, and Quit</td></tr>
+      <tr><td>Toolbar</td><td>Record, Play, Pause, Stop, Step-through, PDF/Script export, card/table view toggle, element targeting toggle, playback speed</td></tr>
+      <tr><td>Left sidebar</td><td>Saved workflows list (top) + step-building palette (collapsible sections). Click any section header to expand/collapse.</td></tr>
+      <tr><td>Canvas</td><td>Your workflow steps as draggable cards (or a compact table — toggle in toolbar)</td></tr>
+      <tr><td>Right panel</td><td>Variables — named values you can use in any step with <code>{variable_name}</code></td></tr>
+      <tr><td>Status bar</td><td>Current state, step count, and playback-start indicator</td></tr>
+      <tr><td>&#9881;&#65039; Settings (sidebar)</td><td>Screenshot capture mode: <em>All screens</em> (default) or <em>Active screen only</em> (better for HiDPI / multi-monitor setups). Setting is saved in your browser&#39;s localStorage — no file written.</td></tr>
+    </table>
+
+    <h3>Keyboard shortcuts</h3>
+    <table>
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td><kbd>Ctrl+R</kbd></td><td>Start / stop recording</td></tr>
+      <tr><td><kbd>Ctrl+P</kbd></td><td>Play workflow</td></tr>
+      <tr><td><kbd>Ctrl+S</kbd></td><td>Save workflow</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Stop playback or recording</td></tr>
+      <tr><td><kbd>Ctrl+Z</kbd></td><td>Undo the last deleted step (up to 10 steps deep)</td></tr>
+      <tr><td><kbd>Enter</kbd> (in note)</td><td>Confirm and save the note for a step</td></tr>
+      <tr><td><kbd>Esc</kbd> (in note)</td><td>Cancel note edit and revert to previous text</td></tr>
+    </table>
+
+    <!-- ── Recording ──────────────────────────────────────── -->
+    <h2 id="recording">Recording</h2>
+    <p>Recording captures every click, keystroke, and scroll you make across your entire desktop — including inside desktop apps, browsers, file explorers, and terminals.</p>
+
+    <h3>Basic recording flow</h3>
+    <ol>
+      <li>Click <strong>● Record</strong> in the toolbar (or press the tray hotkey)</li>
+      <li>Perform the actions you want to automate</li>
+      <li>Click <strong>■ Stop</strong> (or close the action) when done</li>
+      <li>Review the captured steps in the canvas, edit or delete any you don't need</li>
+      <li>Name the workflow in the title bar and click <strong>💾 Save</strong></li>
+    </ol>
+
+    <div class="callout tip">
+      <span class="ci">💡</span>
+      <p><strong>Pause during recording</strong> — hit <strong>⏸ Pause</strong> to freeze capture while you navigate to the right window, then resume. Paused time is not recorded.</p>
+    </div>
+
+    <h3>What gets captured</h3>
+    <ul>
+      <li>Mouse clicks (with target window, element name when available, and screen coordinates as fallback)</li>
+      <li>Keyboard typing — captured as a single <em>Type</em> step per burst</li>
+      <li>Hotkeys — <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Alt</kbd>+<kbd>F4</kbd>, etc.</li>
+      <li>Mouse wheel scrolls — consecutive scrolls at the same position are merged into one step automatically</li>
+    </ul>
+
+    <h3>Automatic cleanup on stop</h3>
+    <p>When you stop recording, AutoFlow condenses the raw event stream:</p>
+    <ul>
+      <li><strong>Navigational scrolls removed</strong> — if you scrolled through a dropdown or list to find an item and then clicked it, the scroll steps are dropped. The click stores the scroll direction so the player can scroll-and-search visually at playback time, without needing exact scroll counts.</li>
+      <li><strong>Repeated scrolls merged</strong> — consecutive scroll events at the same position become one step with the total delta.</li>
+      <li><strong>Opening preamble collapsed</strong> — leading clicks that were just "getting to the application" (opening Start menu, navigating to a page) are replaced with a single Navigate + Wait for Window step.</li>
+      <li><strong>Duplicate waits merged</strong> — back-to-back wait steps keep only the longer one.</li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="ci">⚠️</span>
+      <p><strong>Chrome element targeting</strong> — Chrome's accessibility layer is off by default. For most browser clicks, AutoFlow automatically falls back to <strong>image-based matching</strong>: it captures the exact visual region around your click (while the dropdown or menu is still open) and re-locates it visually at playback time. This handles dynamic layouts and dropdown menus without any browser flags. For the most reliable element-level targeting, add a <strong>🚀 Launch Browser</strong> step at the top of your workflow — it opens Chrome with accessibility enabled so AutoFlow can also target by element name.</p>
+    </div>
+
+    <!-- ── Playback ────────────────────────────────────────── -->
+    <h2 id="playback">Playback</h2>
+
+    <h3>Full playback</h3>
+    <p>Click <strong>▶ Play</strong>. AutoFlow replays every step from the beginning (or from your chosen start point — see below). The active step is highlighted in the canvas as it runs.</p>
+
+    <h3>Start from a specific step</h3>
+    <p>Click any step card to set it as the playback start point — a green indicator appears at the bottom. <strong>▶ Play</strong> and <strong>⏭ Step</strong> both respect this starting point.</p>
+
+    <h3>Step-through mode</h3>
+    <p>Click <strong>⏭ Step</strong> to execute one step at a time. Useful for debugging — you can see exactly what each step does before continuing.</p>
+
+    <h3>Pause &amp; resume</h3>
+    <p>Hit <strong>⏸ Pause</strong> during playback to freeze at the current step. Click <strong>▶ Resume</strong> to continue.</p>
+
+    <h3>Playback speed</h3>
+    <p>The <strong>Speed</strong> slider in the toolbar scales all wait times. <code>0.25×</code> slows everything down for debugging; <code>4×</code> races through fast repetitive tasks.</p>
+
+    <h3>Element targeting</h3>
+    <p>The <strong>Element targeting</strong> checkbox (toolbar) tells playback to use captured UI element names rather than raw screen coordinates. Leave it on unless an element-based step is failing — then try unchecking it to fall back to coordinates.</p>
+
+    <!-- ── Saving ──────────────────────────────────────────── -->
+    <h2 id="saving">Saving &amp; Loading</h2>
+    <ul>
+      <li><strong>Save</strong> — writes <code>dist/workflows/&lt;name&gt;.json</code>. The name comes from the titlebar field.</li>
+      <li><strong>Load</strong> — click any workflow in the <em>Workflows</em> sidebar section.</li>
+      <li><strong>Delete</strong> — hover a workflow name and click the red ✕ that appears.</li>
+      <li><strong>New</strong> — clears the canvas for a fresh workflow without closing the app.</li>
+    </ul>
+    <p class="dim">Workflow JSON files are portable — copy them between machines, put them in Git, or share them with colleagues who also run AutoFlow.</p>
+
+    <!-- ── Add Step ────────────────────────────────────────── -->
+    <h2 id="add-step">Add Step Palette</h2>
+    <p>Instead of recording, you can build workflows step-by-step from the palette. Click a section header in the sidebar to expand it, then click any button to insert that step type at the end of the canvas.</p>
+
+    <div class="step-grid">
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🖱️</span><span class="sc-name">Click</span></div><div class="sc-desc">Click a screen position or UI element. Specify window, element name, or x/y coords.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⌨️</span><span class="sc-name">Type</span></div><div class="sc-desc">Send keystrokes to the active window. Supports <code>{variable_name}</code> substitution.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⚡</span><span class="sc-name">Hotkey</span></div><div class="sc-desc">Press a key combination — e.g. <code>ctrl+s</code>, <code>alt+f4</code>, <code>win+d</code>.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⏱️</span><span class="sc-name">Wait</span></div><div class="sc-desc">Pause for a fixed number of seconds before the next step.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🔄</span><span class="sc-name">Scroll</span></div><div class="sc-desc">Scroll the mouse wheel at a position (positive = up, negative = down).</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🌐</span><span class="sc-name">Navigate</span></div><div class="sc-desc">Open a URL in the default browser. Pair with Launch Browser for Chrome accessibility.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🔁</span><span class="sc-name">Loop</span></div><div class="sc-desc">Repeat a block of steps N times. AutoFlow adds Loop / End Loop markers automatically.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">❓</span><span class="sc-name">If</span></div><div class="sc-desc">Conditional branch on a variable value. Adds If / Else / End If markers.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📦</span><span class="sc-name">Set Variable</span></div><div class="sc-desc">Assign a value to a named variable. Can evaluate simple expressions.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⚙️</span><span class="sc-name">Run Script</span></div><div class="sc-desc">Execute an inline Python snippet. Access variables via the <code>ctx</code> dict; set <code>ctx["result"]</code> to store output.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📸</span><span class="sc-name">Screenshot</span></div><div class="sc-desc">Capture the full screen. The image is saved and embedded in the PDF report.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">💬</span><span class="sc-name">Comment</span></div><div class="sc-desc">A non-executing label for documenting your workflow. Shown in cards and exports.</div></div>
+    </div>
+
+    <!-- ── Automation ─────────────────────────────────────── -->
+    <h2 id="automation">Automation Steps</h2>
+
+    <div class="step-grid">
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🛡️</span><span class="sc-name">On Error</span></div><div class="sc-desc">Wrap steps in an error handler — choose to stop, continue, or retry on failure.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🚀</span><span class="sc-name">Launch Browser</span></div><div class="sc-desc">Open Chrome with accessibility enabled. Add at workflow start for reliable web automation.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📢</span><span class="sc-name">Show Message</span></div><div class="sc-desc">Pop up a message box during playback — useful for prompts or status checkpoints.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⏳</span><span class="sc-name">Wait for Element</span></div><div class="sc-desc">Pause until a specific UI element appears on screen (up to a configurable timeout).</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📋</span><span class="sc-name">Get Clipboard</span></div><div class="sc-desc">Read the current clipboard text into a variable.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📌</span><span class="sc-name">Set Clipboard</span></div><div class="sc-desc">Write a value (supports variable substitution) to the clipboard.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🖼️</span><span class="sc-name">Image Click</span></div><div class="sc-desc">Find a template image on screen and click it — works even when element names change.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🪟</span><span class="sc-name">Wait for Window</span></div><div class="sc-desc">Pause until a window whose title <em>contains</em> the given text (case-insensitive). Use a short substring like <code>Excel</code> for robustness.</div></div>
+    </div>
+
+    <!-- ── Files & Web ────────────────────────────────────── -->
+    <h2 id="filesweb">Files &amp; Web</h2>
+
+    <div class="step-grid">
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📄</span><span class="sc-name">Read File</span></div><div class="sc-desc">Read a file's text content into a variable.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📝</span><span class="sc-name">Write File</span></div><div class="sc-desc">Write or append text to a file. Supports variable substitution in the content.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📑</span><span class="sc-name">Copy File</span></div><div class="sc-desc">Copy a file or directory to a destination path.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📦</span><span class="sc-name">Move File</span></div><div class="sc-desc">Move or rename a file.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🗑️</span><span class="sc-name">Delete File</span></div><div class="sc-desc">Permanently delete a file. No recycle bin — use carefully.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🌍</span><span class="sc-name">HTTP Request</span></div><div class="sc-desc">Make a GET/POST/PUT/DELETE request. Store the response body in a variable.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">📂</span><span class="sc-name">Open File/App</span></div><div class="sc-desc">Open a file with its default application, or launch any executable.</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">⛔</span><span class="sc-name">Kill Process</span></div><div class="sc-desc">Terminate a running process by name (e.g. <code>notepad.exe</code>).</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">❌</span><span class="sc-name">Close Window</span></div><div class="sc-desc">Close a specific window by title (partial match).</div></div>
+      <div class="step-card"><div class="sc-hdr"><span class="sc-icon">🔊</span><span class="sc-name">Play Sound</span></div><div class="sc-desc">Play a <code>.wav</code> file — handy for audio alerts at the end of a long workflow.</div></div>
+    </div>
+
+    <!-- ── Variables ─────────────────────────────────────── -->
+    <h2 id="variables">Variables</h2>
+    <p>Variables are named values stored in the right panel. They let you parameterize workflows so the same steps work with different inputs.</p>
+
+    <h3>Creating variables</h3>
+    <p>Click <strong>＋ Variable</strong> in the right panel. Give it a name (letters, numbers, underscores) and an optional default value.</p>
+
+    <h3>Using variables in steps</h3>
+    <p>Anywhere a step field accepts text, wrap the variable name in curly braces: <code>{my_variable}</code>. AutoFlow substitutes the live value at playback time.</p>
+
+    <pre><code># Type step: logs into a form
+value: Hello {username}, your ID is {user_id}</code></pre>
+
+    <h3>Setting variables during playback</h3>
+    <ul>
+      <li><strong>Set Variable</strong> — assign a literal or expression</li>
+      <li><strong>Get Clipboard</strong> — reads clipboard into a variable</li>
+      <li><strong>Read File</strong> — reads file content into a variable</li>
+      <li><strong>HTTP Request</strong> — stores the response body</li>
+      <li><strong>Run Script</strong> — set <code>ctx["varname"] = value</code> to write any variable</li>
+    </ul>
+
+    <!-- ── Logic & Loops ──────────────────────────────────── -->
+    <h2 id="logic">Logic &amp; Loops</h2>
+
+    <h3>Loop</h3>
+    <p>The <strong>🔁 Loop</strong> step repeats the steps between it and its matching <strong>↩️ End Loop</strong> marker N times. Set <code>count</code> to the number of iterations.</p>
+
+    <pre><code>🔁 Loop  (count: 5)
+  🖱️ Click  ...
+  ⌨️ Type   ...
+↩️ End Loop</code></pre>
+
+    <h3>If / Else</h3>
+    <p>The <strong>❓ If</strong> step branches based on a variable value. Set <code>variable</code>, <code>operator</code> (<code>==</code> <code>!=</code> <code>&gt;</code> <code>&lt;</code> <code>contains</code>), and <code>value</code>.</p>
+
+    <pre><code>❓ If  (status == "done")
+  📢 Show Message: "Finished!"
+↕️ Else
+  📢 Show Message: "Still running…"
+✓  End If</code></pre>
+
+    <!-- ── Run Script ─────────────────────────────────────── -->
+    <h2 id="scripts">Run Script</h2>
+    <p>The <strong>⚙️ Run Script</strong> step executes an inline Python snippet inside the workflow runtime. Use it for anything the built-in steps can't do.</p>
+
+    <h3>The <code>ctx</code> object</h3>
+    <p><code>ctx</code> is a dict containing all current variable values. Read from it, write to it:</p>
+    <pre><code># Double a numeric variable
+ctx["count"] = int(ctx.get("count", 0)) * 2
+
+# Build a filename from variables
+ctx["output_path"] = f"C:/reports/{ctx['date']}_report.txt"</code></pre>
+
+    <div class="callout info">
+      <span class="ci">ℹ️</span>
+      <p>Scripts run in the same Python process as AutoFlow. Standard library imports work. Third-party packages available in AutoFlow's venv are also accessible.</p>
+    </div>
+
+    <!-- ── Export ─────────────────────────────────────────── -->
+    <h2 id="export">Export &amp; Import</h2>
+
+    <h3>PDF Report — 📄 PDF</h3>
+    <p>Generates a formatted PDF of the entire workflow: step list, parameters, step notes (shown as green callout blocks), and any screenshots captured by <strong>📸 Screenshot</strong> steps. Disabled steps are shown with a "SKIPPED" tag so reviewers can see what was intentionally bypassed.</p>
+
+    <h3>Python Script — 🐍 Script</h3>
+    <p>Exports the workflow as a standalone <code>.py</code> file. The script runs without AutoFlow installed — it uses <code>pyautogui</code> directly. Good for scheduling via Task Scheduler or including in larger codebases.</p>
+
+    <h3>Runnable Package — 📦 ZIP</h3>
+    <p>Exports a <code>.zip</code> file containing the Python script, a <code>run.bat</code> launcher, <code>requirements.txt</code>, and a <code>README.txt</code>. Share this ZIP with anyone on Windows — they just double-click <code>run.bat</code>. The batch file checks whether Python is installed, installs <code>pyautogui</code> automatically if needed, then runs the workflow. No AutoFlow installation required on the recipient's machine.</p>
+    <div class="callout info">
+      <span class="ci">ℹ️</span>
+      <p>Recipients who don't have Python will see clear instructions pointing them to <code>python.org/downloads</code>. Make sure they check "Add Python to PATH" during installation.</p>
+    </div>
+
+    <h3>Import — 📥 Import</h3>
+    <p>The <strong>📥 Import</strong> button in the titlebar accepts two file types:</p>
+    <ul>
+      <li><strong>.json</strong> — a saved AutoFlow workflow file. Loads it directly as the current workflow.</li>
+      <li><strong>.py</strong> — a Python script previously exported from AutoFlow. AutoFlow parses it back into editable steps (click, type, hotkey, wait, scroll, navigate, loop, if/else, variables, and comments all round-trip correctly).</li>
+    </ul>
+
+    <!-- ── Tips ──────────────────────────────────────────── -->
+    <h2 id="tips">Tips &amp; Tricks</h2>
+
+    <h3>Editing steps</h3>
+    <p>Double-click any step card to open the edit modal. You can change every field — coordinates, text, timeout, window title, etc. Click the card's <strong>✕</strong> button to delete it.</p>
+
+    <h3>Step notes</h3>
+    <p>Every step card has a <strong>💬 Add note…</strong> area at the bottom. Click it and type anything — a reminder, a description of what the step does, a reason why it's there. The note saves automatically when you click away or press <kbd>Enter</kbd>. Press <kbd>Shift+Enter</kbd> for a line break; <kbd>Esc</kbd> cancels without saving.</p>
+    <p>The same note field appears at the bottom of the step's edit modal (<strong>📝 Note</strong>) if you prefer editing there.</p>
+    <p>Notes show on the card in italic and appear as a <strong>📝 Note</strong> callout in the PDF export — making the exported PDF useful as a walkthrough document or SOP if you choose to write it that way.</p>
+
+    <h3>Reordering steps</h3>
+    <p>Drag and drop cards to reorder them. The table view shows the same steps in a compact list — changes in one view are reflected in the other.</p>
+
+    <h3>Disabling steps</h3>
+    <p>Click the <strong>🚫</strong> button on any step card to disable it without deleting it. Disabled steps are visually greyed out, skipped during playback, and commented out in exported scripts. Click <strong>&#9654;</strong> to re-enable. This is useful when debugging a workflow — disable a step temporarily to see what happens without it.</p>
+
+    <h3>Undoing a deleted step</h3>
+    <p>Pressing <kbd>Ctrl+Z</kbd> immediately after deleting a step restores it to its original position. AutoFlow keeps the last <strong>10</strong> deleted steps in memory — so you can undo up to 10 deletions in sequence. A brief toast notification appears after each deletion reminding you the shortcut is available.</p>
+
+    <h3>Unsaved changes indicator</h3>
+    <p>The <strong>Save</strong> button pulses blue and the page title shows <strong>●</strong> whenever the current workflow has unsaved edits — including adding, deleting, reordering, editing, or disabling steps. The indicator clears as soon as you save.</p>
+
+    <h3>Start from any step</h3>
+    <p>Click a card once to mark it as the playback start point (highlighted green dot in status bar). Hit <strong>▶ Play</strong> and only that step onward runs — useful when iterating on the end of a long workflow.</p>
+
+    <h3>Script export — supported step types</h3>
+    <p>The <strong>&#128013; Script</strong> and <strong>&#128230; ZIP</strong> exports generate standalone Python scripts using <code>pyautogui</code>. The following step types are fully supported in exported scripts:</p>
+    <ul>
+      <li><strong>Core input:</strong> Click, Type, Hotkey, Scroll, Wait, Navigate</li>
+      <li><strong>Flow control:</strong> Loop, If/Else, Set Variable, Run Script, Comment</li>
+      <li><strong>System:</strong> Open File/App (<code>os.startfile</code>), Kill Process, Close Window, Play Sound</li>
+      <li><strong>Files:</strong> Read File, Write File, Copy File, Move File, Delete File</li>
+      <li><strong>Network:</strong> HTTP Request (<code>urllib</code>, no extra dependencies)</li>
+      <li><strong>UI:</strong> Wait for Window, Launch Browser, Show Message, Get/Set Clipboard, Screenshot</li>
+    </ul>
+    <p>Steps that are <strong>disabled</strong> are written as comments. <strong>Image Click</strong> steps include a comment showing how to locate the template image using <code>pyautogui.locateCenterOnScreen</code>.</p>
+    <p>The exported script auto-installs <code>pyautogui</code> on first run if it is not already installed.</p>
+
+    <h3>Chrome web automation</h3>
+    <ol>
+      <li>Add a <strong>🚀 Launch Browser</strong> step as step 1</li>
+      <li>Add a <strong>🌐 Navigate</strong> step with your target URL</li>
+      <li>Record or add the remaining interaction steps</li>
+    </ol>
+    <p>This ensures Chrome opens with accessibility enabled and AutoFlow can reliably identify buttons, inputs, and links by name rather than pixel position.</p>
+
+    <h3>Handling dynamic content</h3>
+    <p>Use <strong>⏳ Wait for Element</strong> or <strong>🪟 Wait for Window</strong> before clicking things that load asynchronously. Avoid raw <strong>⏱️ Wait</strong> steps with fixed times — they're fragile if a page loads faster or slower than expected.</p>
+
+    <h3>Dropdown and list navigation</h3>
+    <p>When you scroll through a dropdown or list to reach an item, AutoFlow records the scroll amount alongside the click. At playback it:</p>
+    <ol>
+      <li>Brings the target window to front</li>
+      <li>Moves the mouse to the recorded click position</li>
+      <li><strong>Replays the scroll</strong> — the same number of notches in the same direction as during recording — so the item is back at the click position</li>
+      <li>Clicks the item</li>
+    </ol>
+    <p>This means dropdown selections work correctly even when the dropdown opens at a different scroll position, as long as the current selection at playback time is similar to what it was during recording (so the same scroll offset reaches the same item).</p>
+    <p class="tip-inline"><strong>Tip:</strong> If an item is consistently missed, the dropdown may open at a very different scroll position on the playback machine. Re-record the selection from that starting state.</p>
+
+    <h3>Using variables for portability</h3>
+    <p>Replace hardcoded paths and usernames with variables. Set the variable once at the top of the workflow with <strong>📦 Set Variable</strong>, then every step that needs it uses <code>{varname}</code>. Changing the workflow for a new target means editing one field.</p>
+
+    <h3>Sidebar sections</h3>
+    <p>Click any sidebar section header to collapse or expand it. Your preference is saved and restored every time you open the app. By default, only the <strong>Workflows</strong> list is expanded — the step-building palette sections are collapsed so the sidebar stays tidy.</p>
+
+    <h3>Multi-monitor setup</h3>
+    <p>The recording HUD (the floating status indicator) automatically repositions itself to the monitor your cursor is on each time recording starts. If you use different monitor arrangements, you don&#39;t need to do anything — it will follow you.</p>
+    <p>For screenshot steps and recorded click previews, use the <strong>&#9881;&#65039; Settings</strong> sidebar section to choose the capture mode:</p>
+    <ul>
+      <li><strong>All screens</strong> (default) — captures the entire virtual desktop spanning all monitors. Best when you want full context across screens.</li>
+      <li><strong>Active screen only</strong> — captures only the monitor where the action occurred. More accurate on HiDPI or mixed-DPI setups where coordinates on secondary monitors can be offset.</li>
+    </ul>
+
+    <!-- ── Troubleshooting ────────────────────────────────── -->
+    <h2 id="troubleshooting">Troubleshooting</h2>
+
+    <table>
+      <tr><th>Symptom</th><th>Fix</th></tr>
+      <tr><td>Clicks land in the wrong spot</td><td>For browser/web clicks, AutoFlow uses image matching to find the element regardless of window position. If it still fails, the visual layout may have changed significantly — re-record that step. For native app clicks, ensure the window is open and in a similar position to when you recorded.</td></tr>
+      <tr><td>"NativeViewHost" warning banner</td><td>Add a <strong>🚀 Launch Browser</strong> step at the top so Chrome opens with accessibility enabled.</td></tr>
+      <tr><td>Playback races too fast / too slow</td><td>Adjust the Speed slider. Add <strong>⏱️ Wait</strong> steps after actions that take time to complete.</td></tr>
+      <tr><td>Dropdown item not selected correctly during playback</td><td>AutoFlow replays the recorded scroll before clicking. If the wrong item is selected, the dropdown may have opened at a very different scroll position on the playback machine (e.g. current selection is far from the recorded one). Re-record the dropdown selection starting from the same site/state the playback machine will be in.</td></tr>
+      <tr><td>Step fails on a renamed window</td><td>Edit the step's <code>window</code> field — AutoFlow does case-insensitive partial title matching, so you only need a stable substring (e.g. <code>Excel</code> instead of <code>Book1 - Excel</code>).</td></tr>
+      <tr><td>Exported script doesn&#39;t open Excel / app</td><td>Older exported scripts had <code># TODO</code> comments for <code>open_file</code> and <code>wait_for_window</code> steps. Re-export the script — these are now fully supported.</td></tr>
+      <tr><td>Wait for Window times out (Excel, Office)</td><td>The default timeout is 8 seconds. Increase it via the step's <em>timeout_ms</em> field (e.g. 20000 for 20 s). Also use a short substring like <code>Excel</code> as the title — Office apps sometimes open with a splash screen before showing the workbook title.</td></tr>
+      <tr><td>Open File/App step fails (Excel, Word, etc.)</td><td>AutoFlow first tries <code>os.startfile</code>, then automatically falls back to <code>cmd /c start</code> which searches the Windows App Paths registry. This means <code>excel.exe</code>, <code>winword.exe</code>, and other Office apps work without specifying the full path. If an app still fails to open, provide its full path (e.g. <code>C:/Program Files/...</code>) in the step's value field.</td></tr>
+      <tr><td>Variable substitution not working</td><td>Make sure the variable name in the step matches exactly (case-sensitive). Check the Variables panel to confirm the variable exists.</td></tr>
+      <tr><td>App won't quit</td><td>Click <strong>✕ Quit</strong> in the titlebar, or right-click the tray icon and choose Quit. As a last resort, end the <code>AutoFlow.exe</code> process in Task Manager.</td></tr>
+      <tr><td>Workflow file is corrupt</td><td>Workflow JSON files are in <code>dist/workflows/</code>. Open the file in a text editor to inspect or fix it. AutoFlow will skip malformed files on load.</td></tr>
+    </table>
+
+    <div class="callout tip">
+      <span class="ci">💡</span>
+      <p>Check <code>dist/autoflow.log</code> for detailed error messages if something unexpected happens during playback.</p>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- .page -->
+
+</body>
+</html>
