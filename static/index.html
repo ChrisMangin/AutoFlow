@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AutoFlow</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+    AutoFlow
+  </div>
+  <div class="spacer"></div>
+  <input id="wf-name" type="text" placeholder="Workflow name…" maxlength="60">
+  <button class="btn btn-ghost" onclick="newWorkflow()">＋ New</button>
+  <button class="btn btn-ghost" onclick="importWorkflow()" title="Import workflow (.json) or Python script (.py)">📥 Import</button>
+  <button class="btn btn-primary" onclick="saveWorkflow()" id="btn-save" disabled>💾 Save</button>
+  <button class="btn btn-ghost" onclick="window.open('guide.html','_blank')" title="User Guide">📖 Guide</button>
+  <button class="btn btn-ghost btn-quit" onclick="quitApp()" title="Quit AutoFlow">✕ Quit</button>
+</div>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <button id="btn-record"    class="btn btn-record"  onclick="toggleRecord()">● Record</button>
+  <button id="btn-pause-rec" class="btn btn-warn"    onclick="togglePauseRecord()" style="display:none">⏸ Pause</button>
+  <div class="sep"></div>
+  <button id="btn-play"      class="btn btn-success" onclick="playWorkflow()"    disabled>▶ Play</button>
+  <button id="btn-pause-play"class="btn btn-warn"    onclick="togglePausePlay()" style="display:none">⏸ Pause</button>
+  <button id="btn-step"      class="btn btn-info"    onclick="stepPlayback()"    style="display:none"  title="Step through — click a card first to start from that step">⏭ Step</button>
+  <button id="btn-stop"      class="btn btn-danger"  onclick="stopPlayback()"   disabled>■ Stop</button>
+  <div class="sep"></div>
+  <button id="btn-export"    class="btn btn-ghost"   onclick="exportPDF()"    disabled>📄 PDF</button>
+  <button id="btn-script"    class="btn btn-ghost"   onclick="exportScript()" disabled title="Export as standalone Python script (.py)">🐍 Script</button>
+  <button id="btn-zip"       class="btn btn-ghost"   onclick="exportZip()"    disabled title="Export as runnable ZIP (script + launcher batch — share with anyone)">📦 ZIP</button>
+  <div class="sep"></div>
+  <div class="view-toggle">
+    <button class="vt-btn active" id="vt-cards" onclick="setView('cards')">⊞ Cards</button>
+    <button class="vt-btn"        id="vt-table" onclick="setView('table')">⋮≡ Table</button>
+  </div>
+  <div class="sep"></div>
+  <div class="el-toggle" title="Prefer element names over coordinates during playback">
+    <input type="checkbox" id="el-target" checked>
+    <label for="el-target">Element targeting</label>
+  </div>
+  <div class="spacer"></div>
+  <div class="speed-group">
+    <span>Speed</span>
+    <input id="speed-r" type="range" min="0.25" max="4" step="0.25" value="1" oninput="updateSpeed()">
+    <span id="speed-lbl">1×</span>
+  </div>
+</div>
+
+<!-- Layout -->
+<div id="layout">
+
+  <!-- Left sidebar -->
+  <div id="sidebar">
+
+    <!-- ── Workflows ─────────────────────────────────────────────── -->
+    <div class="pal-section" id="sec-workflows">
+      <button class="pal-hdr" onclick="toggleSection('sec-workflows')">
+        <span>Workflows</span><span class="pal-chevron">▾</span>
+      </button>
+      <div class="pal-body" id="wf-list">
+        <div class="empty-hint">No saved workflows yet.</div>
+      </div>
+    </div>
+
+    <!-- ── Step palette ───────────────────────────────────────────── -->
+    <div id="palette">
+
+      <div class="pal-section" id="sec-addstep">
+        <button class="pal-hdr" onclick="toggleSection('sec-addstep')">
+          <span>Add Step</span><span class="pal-chevron">▾</span>
+        </button>
+        <div class="pal-body p-grid">
+          <button class="p-btn" onclick="addStep('click')">      <span class="p-icon">🖱️</span>Click</button>
+          <button class="p-btn" onclick="addStep('type')">       <span class="p-icon">⌨️</span>Type</button>
+          <button class="p-btn" onclick="addStep('hotkey')">     <span class="p-icon">⚡</span>Hotkey</button>
+          <button class="p-btn" onclick="addStep('wait')">       <span class="p-icon">⏱️</span>Wait</button>
+          <button class="p-btn" onclick="addStep('scroll')">     <span class="p-icon">🔄</span>Scroll</button>
+          <button class="p-btn" onclick="addStep('navigate')">   <span class="p-icon">🌐</span>Navigate</button>
+          <button class="p-btn" onclick="addStep('loop')">       <span class="p-icon">🔁</span>Loop</button>
+          <button class="p-btn" onclick="addStep('if')">         <span class="p-icon">❓</span>If</button>
+          <button class="p-btn" onclick="addStep('set_variable')"><span class="p-icon">📦</span>Set Var</button>
+          <button class="p-btn" onclick="addStep('run_script')"> <span class="p-icon">⚙️</span>Script</button>
+          <button class="p-btn" onclick="addStep('screenshot')"> <span class="p-icon">📸</span>Screenshot</button>
+          <button class="p-btn" onclick="addStep('comment')">    <span class="p-icon">💬</span>Comment</button>
+        </div>
+      </div>
+
+      <div class="pal-section" id="sec-automation">
+        <button class="pal-hdr" onclick="toggleSection('sec-automation')">
+          <span>Automation</span><span class="pal-chevron">▾</span>
+        </button>
+        <div class="pal-body p-grid">
+          <button class="p-btn" onclick="addStep('error_handler')">   <span class="p-icon">🛡️</span>On Error</button>
+          <button class="p-btn" onclick="addStep('launch_browser')">  <span class="p-icon">🚀</span>Browser</button>
+          <button class="p-btn" onclick="addStep('show_message')">    <span class="p-icon">📢</span>Message</button>
+          <button class="p-btn" onclick="addStep('wait_for_element')"><span class="p-icon">⏳</span>Wait Elem</button>
+          <button class="p-btn" onclick="addStep('get_clipboard')">   <span class="p-icon">📋</span>Get Clip</button>
+          <button class="p-btn" onclick="addStep('set_clipboard')">   <span class="p-icon">📌</span>Set Clip</button>
+          <button class="p-btn" onclick="addStep('image_click')">     <span class="p-icon">🖼️</span>Img Click</button>
+          <button class="p-btn" onclick="addStep('wait_for_window')"> <span class="p-icon">🪟</span>Wait Window</button>
+        </div>
+      </div>
+
+      <div class="pal-section" id="sec-filesweb">
+        <button class="pal-hdr" onclick="toggleSection('sec-filesweb')">
+          <span>Files &amp; Web</span><span class="pal-chevron">▾</span>
+        </button>
+        <div class="pal-body p-grid">
+          <button class="p-btn" onclick="addStep('read_file')">    <span class="p-icon">📄</span>Read File</button>
+          <button class="p-btn" onclick="addStep('write_file')">   <span class="p-icon">📝</span>Write File</button>
+          <button class="p-btn" onclick="addStep('copy_file')">    <span class="p-icon">📑</span>Copy File</button>
+          <button class="p-btn" onclick="addStep('move_file')">    <span class="p-icon">📦</span>Move File</button>
+          <button class="p-btn" onclick="addStep('delete_file')">  <span class="p-icon">🗑️</span>Delete File</button>
+          <button class="p-btn" onclick="addStep('http_request')"> <span class="p-icon">🌍</span>HTTP Request</button>
+          <button class="p-btn" onclick="addStep('open_file')">    <span class="p-icon">📂</span>Open File/App</button>
+          <button class="p-btn" onclick="addStep('kill_process')"> <span class="p-icon">⛔</span>Kill Process</button>
+          <button class="p-btn" onclick="addStep('close_window')"> <span class="p-icon">❌</span>Close Window</button>
+          <button class="p-btn" onclick="addStep('play_sound')">   <span class="p-icon">🔊</span>Play Sound</button>
+        </div>
+      </div>
+
+
+      <!-- Settings -->
+      <div class="pal-section" id="sec-settings">
+        <button class="pal-hdr" onclick="toggleSection('sec-settings')">
+          <span>&#9881;&#65039; Settings</span><span class="pal-chevron">&#9662;</span>
+        </button>
+        <div class="pal-body" style="padding:8px 10px;">
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Screenshot capture</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+              <input type="radio" name="ss-mode" value="all" id="ss-all" onchange="saveScreenshotMode(this.value)">
+              <span>All screens</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+              <input type="radio" name="ss-mode" value="active" id="ss-active" onchange="saveScreenshotMode(this.value)">
+              <span>Active screen only <span style="color:var(--text-dim);font-size:11px;">(better for HiDPI)</span></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- #palette -->
+  </div><!-- #sidebar -->
+
+  <!-- Persistent hint shown when any recorded step hit a NativeViewHost (Chrome accessibility wall) -->
+  <div id="native-hint" style="display:none">
+    <span>⚠ <strong>Chrome accessibility not available</strong> — some steps landed on <code>NativeViewHost</code> and will fall back to coordinates.
+    For reliable element targeting, add a <strong>🚀 Browser</strong> step at the start (launches Chrome with accessibility enabled)
+    or run Chrome with <code>--force-renderer-accessibility</code>.</span>
+    <button onclick="const b=document.getElementById('native-hint');b.style.display='none';b.dataset.dismissed='1'" title="Dismiss">✕</button>
+  </div>
+
+  <!-- Cards view -->
+  <div id="canvas-wrap">
+    <div id="canvas-empty">
+      <div class="ei">⚡</div>
+      <p>Click <strong>● Record</strong> to capture actions,</p>
+      <p>or use <strong>Add Step</strong> to build manually.</p>
+      <p class="ei-hint">Click any card to set the playback start point.</p>
+    </div>
+  </div>
+
+  <!-- Table view -->
+  <div id="cmd-table-wrap">
+    <table class="cmd-table" id="cmd-table">
+      <thead>
+        <tr>
+          <th class="td-num">#</th>
+          <th class="td-icon"></th>
+          <th class="td-cmd">Command</th>
+          <th class="td-target">Target / Element</th>
+          <th class="td-value">Value</th>
+          <th class="td-acts"></th>
+        </tr>
+      </thead>
+      <tbody id="cmd-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Right: Variables -->
+  <div id="var-panel">
+    <div class="panel-hdr">Variables</div>
+    <div id="var-list"></div>
+    <button id="add-var-btn" class="btn btn-ghost" onclick="addVariable()">＋ Variable</button>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="statusbar">
+  <span id="status-msg">Ready</span>
+  <span id="play-start-hint" style="display:none;color:#32d74b;font-size:11px;"></span>
+  <span id="step-count">0 steps</span>
+</div>
+
+<!-- Edit modal -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h3 id="modal-title">Edit Step</h3>
+    <div id="modal-fields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Screenshot lightbox -->
+<div id="lightbox" onclick="document.getElementById('lightbox').classList.remove('open')">
+  <div class="lb-inner">
+    <img id="lightbox-img" src="" alt="screenshot">
+    <div class="lb-hint">Click anywhere to close</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<input type="file" id="import-input" accept=".py,.json" style="display:none" onchange="onImportFile(event)">
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
