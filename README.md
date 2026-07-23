@@ -1,141 +1,155 @@
 <div align="center">
 
 # AutoFlow
-**Desktop automation for Windows - record, edit, replay.**
+**Record, edit, and replay desktop automation workflows on Windows**
 
-[![Latest Release](https://img.shields.io/github/v/release/ChrisMangin/AutoFlow?color=4f8ef7&label=download&style=flat-square)](https://github.com/ChrisMangin/AutoFlow/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D4?style=flat-square&logo=windows)](https://github.com/ChrisMangin/AutoFlow)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/ChrisMangin/AutoFlow)
-[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-CE422B?style=flat-square&logo=rust&logoColor=white)](https://github.com/ChrisMangin/AutoFlow)
+[![Latest Release](https://img.shields.io/github/v/release/ChrisMangin/AutoFlow?style=flat-square)](https://github.com/ChrisMangin/AutoFlow/releases/latest)
+[![License](https://img.shields.io/github/license/ChrisMangin/AutoFlow?style=flat-square)](LICENSE)
 
+<br>
+<img src="docs/screenshots/main.png" alt="AutoFlow Main UI" width="860">
 </div>
 
----
+AutoFlow is a **standalone Windows app** (no install, no Python, no runtime) that lets you record mouse and keyboard actions, edit them into reliable workflows, and play them back hands-free — with a clean dark UI, a floating HUD overlay, and a full built-in guide.
 
-AutoFlow lets you **record mouse and keyboard actions** across any Windows application, refine them into reliable workflows, and **play them back** hands-free. No scripting required for most tasks.
+> **v2.0.0** — Rewritten in Rust. **3.1 MB** single EXE, instant startup, no dependencies.
 
-> **Quick start:** Download `AutoFlow.exe` from [Releases](https://github.com/ChrisMangin/AutoFlow/releases), run it, click **Record**, do your task, click **Stop**, then **Play**.
 
----
+## Screenshots
+
+<table>
+<tr>
+  <td><img src="docs/screenshots/main.png" alt="Main UI" width="420"></td>
+  <td><img src="docs/screenshots/guide.png" alt="User Guide" width="420"></td>
+</tr>
+<tr>
+  <td align="center"><em>Main canvas — toolbar, step palette, and variables panel</em></td>
+  <td align="center"><em>Built-in User Guide with sidebar navigation</em></td>
+</tr>
+</table>
+
 
 ## Features
 
 ### Recording
-- Captures clicks, keystrokes, hotkeys, and scrolls across any app
-- Smart cleanup on stop: merges consecutive scrolls, collapses redundant UI navigation, deduplicates waits
-- Per-click screenshots (thumbnail + full-screen) captured immediately so cards show what was clicked
-- Phase-2 element detection via Windows UI Automation - falls back to image matching for browsers
+- **Global F9 hotkey** — start and stop recording from anywhere, no need to click back to the browser
+- Captures mouse clicks (with UI Automation element names and AutomationIds), keystrokes, hotkeys, and scroll events across the entire desktop — including Win32 apps, browsers, file explorers, and terminals
+- **Smart context detection** — auto-inserts a Navigate step for browser sessions or an Open App step for desktop apps
+- Consecutive scrolls at the same position are merged automatically; typed characters batch into a single Type step
+- **Region screenshot thumbnails** captured per click with a visual target circle overlay
+
+### HUD Overlay
+- Frameless floating panel always visible above all windows; drag to reposition, position is remembered between sessions
+- Buttons send commands directly to the recorder — bypasses HTTP for instant response even while the hook thread is active
+- Hides automatically when the last browser tab closes
 
 ### Editing
-- Drag-and-drop reorder; card view and compact table view
-- Double-click any card to edit every field inline
-- Disable steps without deleting - skipped at playback, commented in script exports
-- Undo deleted steps with `Ctrl+Z` (up to 10 deletions)
-- Per-step notes for documentation and PDF export
-- Unsaved-change indicator: Save button pulses when there are uncommitted edits
+- **Drag-and-drop reorder** in card view; compact table view for dense workflows
+- Full edit modal for every step type
+- **Disable steps** — skip without deleting; shown struck-through in PDF/script exports
+- **Undo delete** — `Ctrl+Z` restores the last deleted step (up to 10 deep)
+- **AI step naming** — `✨ AI Names` button renames steps via local Ollama (`qwen3:8b`)
+- Per-step notes with inline editor; notes appear in PDF export
+- Unsaved-change indicator: Save button pulses blue, title bar shows `●`
 
 ### Playback
-- Full playback, single-step, or start from any step
-- Adjustable speed (0.25x to 4x)
-- Three-level click fallback: UI element name, window-relative offset, absolute coordinates
-- `wait_for_window` uses case-insensitive substring matching
+- Start from any step; step-through mode advances one step at a time
+- Adjustable speed: 0.25× to 4×
+- **Smart window-ready check** before every click — waits for the target window to respond before acting
+- Three-level click fallback: UI element name/AutomationId → window-relative offset → absolute coordinates
+- Recursive **Run Workflow** step — chain workflows together
 
-### Step Types
-
-| Category | Steps |
-|----------|-------|
-| **Input** | Click, Type, Hotkey, Scroll, Wait, Navigate |
-| **Flow** | Loop, If/Else, Set Variable, Run Script, Comment |
-| **UI** | Wait for Element, Wait for Window, Launch Browser, Show Message, Image Click |
-| **Clipboard** | Get Clipboard, Set Clipboard |
-| **Files** | Read File, Write File, Copy File, Move File, Delete File |
-| **System** | Open File/App, Kill Process, Close Window, Play Sound |
-| **Network** | HTTP Request |
-| **Misc** | Screenshot, Error Handler |
+### Step Types (25+)
+Click, Type, Hotkey, Scroll, Wait, Navigate, Launch Browser, Wait for Element, Wait for Window,
+Screenshot, Show Message, Get/Set Clipboard, Image Click, Open File/App, Read/Write/Copy/Move/Delete File,
+HTTP Request, Kill Process, Close Window, Play Sound, Loop, If/Else, Set Variable, Run Script, Comment, Run Workflow
 
 ### Export
+- **PDF report** — steps, notes, and screenshots; use as a walkthrough or SOP
+- **Python script** — standalone `pyautogui` script for all step types
+- **ZIP package** — script + `run.bat` + `requirements.txt`
+- **Task Scheduler XML** — `⏰ Schedule` button exports a ready-to-import Windows Task Scheduler package
 
-| Format | Description |
-|--------|-------------|
-| **PDF** | Formatted walkthrough with screenshots and step notes - ready to use as a SOP |
-| **Python Script** | Standalone `.py` using `pyautogui`; runs without AutoFlow installed |
-| **ZIP Package** | Script + `run.bat` + `requirements.txt`; double-click to run on any Windows machine |
+### Quality of Life
+- **System tray** — minimize to tray, reopen, record new, or replay last
+- Workflows stored as portable JSON in `%APPDATA%\AutoFlow\workflows\`
+- Two-click delete confirmation — click ✕, button turns red showing "Delete?" for 3.5s, click again to confirm
+- Runs **100% locally** — nothing is sent over the internet
 
-### Other
-- System tray integration - minimize to tray, tray hotkeys
-- Variables panel with `{variable_name}` substitution in any text field
-- Workflows stored as portable JSON files
-- Settings persisted in browser localStorage
-
----
 
 ## Quick Start
 
-1. **Download** `AutoFlow.exe` from the [Releases](https://github.com/ChrisMangin/AutoFlow/releases) page
-2. **Run** - no installation, no admin rights required
-3. Click **Record**, perform your task, click **Stop**
-4. Review the captured steps, add notes if needed
-5. Click **Save**, then **Play**
+### Option 1 — Standalone EXE (Windows, no install needed)
 
-The app opens in your default browser. A system-tray icon lets you reopen, record, or replay without keeping the browser tab in focus.
+1. Download **`autoflow.exe`** from the [latest release](https://github.com/ChrisMangin/AutoFlow/releases/latest)
+2. Double-click it — a browser tab opens automatically at `http://127.0.0.1:7878`
+3. Click **● Record**, do your actions, press **F9** or click **■ Stop**
 
----
+The server auto-exits when the last browser tab is closed.
 
-## Building from Source
+### Option 2 — Build from Source
 
-### Prerequisites
-- Python 3.10+
-- [`uv`](https://github.com/astral-sh/uv) (recommended) or `pip`
+Requires [Rust](https://rustup.rs/) 1.70+.
 
-### Setup
-
-```bash
-git clone https://github.com/ChrisMangin/AutoFlow.git
+```sh
+git clone https://github.com/ChrisMangin/AutoFlow
 cd AutoFlow
-uv venv .venv
-.venv\Scripts\activate
-uv pip install -r requirements.txt
+cargo build --release
+# EXE at: target/release/autoflow.exe
 ```
 
-### Run in Dev Mode
 
-```bash
-python server.py
-```
+## Keyboard Shortcuts
 
-### Build EXE
+| Shortcut | Action |
+|----------|--------|
+| `F9` | Start / stop recording (global — works from any app) |
+| `Ctrl+R` | Start / stop recording (browser must be focused) |
+| `Ctrl+P` | Play workflow |
+| `Ctrl+S` | Save workflow |
+| `Esc` | Stop playback or recording |
+| `Ctrl+Z` | Undo last deleted step (up to 10 deep) |
 
-```bash
-python -m PyInstaller AutoFlow.spec --noconfirm
-# Output: dist/AutoFlow.exe
-```
 
----
-
-## Project Structure
+## Project Layout
 
 ```
 AutoFlow/
-+-- server.py            # Flask + Socket.IO app - entry point
-+-- recorder.py          # Mouse/keyboard capture engine
-+-- player.py            # Step replay engine
-+-- overlay_native.py    # Win32 recording HUD (dim layer + tkinter status)
-+-- static/
-|   +-- index.html       # Main app UI shell
-|   +-- app.js           # Frontend state + rendering (~1100 lines)
-|   +-- style.css        # Dark UI theme
-|   +-- guide.html       # In-app user guide
-|   +-- overlay.html     # Recording HUD web view
-+-- workflows/           # Saved workflow JSON files (user data, gitignored)
-+-- dev/
-|   +-- test_element.py  # Standalone element-detection tester
-+-- _legacy/             # Old pywebview entry points (superseded)
-+-- AutoFlow.spec        # PyInstaller build spec
-+-- requirements.txt
+├── Cargo.toml
+├── src/
+│   ├── main.rs          entry point — port binding, duplicate-instance guard, tray setup
+│   ├── server.rs        axum HTTP + WebSocket server, all API routes
+│   ├── state.rs         thread-safe app state (steps, variables, status)
+│   ├── recorder.rs      Win32 low-level mouse/keyboard hook, UIA element detection
+│   ├── player.rs        async workflow playback engine, smart window-ready checks
+│   ├── hud.rs           Win32 HUD overlay window, F9 global hotkey
+│   ├── tray.rs          system tray icon and menu
+│   ├── export.rs        PDF, Python script, ZIP, and Task Scheduler XML export
+│   ├── ws.rs            WebSocket broadcast helpers
+│   └── embedded.rs      rust-embed static asset server
+└── static/
+    ├── index.html       app shell
+    ├── style.css        dark UI theme
+    ├── app.js           all UI logic (~1 300 lines, no build step)
+    ├── ws.js            WebSocket client
+    └── guide.html       built-in user guide
 ```
 
----
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| HTTP + WebSocket server | [axum](https://github.com/tokio-rs/axum) 0.7 + tokio |
+| Win32 / UIA / COM | [windows-rs](https://github.com/microsoft/windows-rs) 0.58 |
+| Image encoding | [image](https://github.com/image-rs/image) (JPEG thumbnails) |
+| Frontend embedding | [rust-embed](https://github.com/pyros2097/rust-embed) |
+| Tray icon | [tray-icon](https://github.com/tauri-apps/tray-icon) |
+| Frontend | Vanilla HTML / CSS / JS — no framework, no build step |
+
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
