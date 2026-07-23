@@ -23,6 +23,7 @@ socket.on("play_done",     ()  => onPlayDone());
 socket.on("play_error",    msg => onPlayError(msg.error));
 socket.on("browser_hint",  msg => onBrowserHint(msg.msg));
 socket.on("clear_steps",   ()  => { S.steps=[]; S.variables={}; S.activeWF=null; S.playStartIdx=0; render(); });
+socket.on("recording_started",() => { S.recording=true; S.recPaused=false; S.steps=[]; render(); updateButtons(); setStatus("● Recording — click Stop when done","recording"); toast("Recording started"); });
 socket.on("record_stopped",msg => { S.recording=false; S.recPaused=false; S.steps=msg.steps||[]; S.playStartIdx=0; S.dirty=true; render(); updateButtons(); setStatus(`Recorded ${S.steps.length} steps`); });
 
 // ── State ─────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ const META = {
   close_window:    {icon:"❌",  label:"Close Window",     cmd:"close_window"},
   open_file:       {icon:"📂",  label:"Open File/App",    cmd:"open_file"},
   play_sound:      {icon:"🔊",  label:"Play Sound",       cmd:"play_sound"},
+  run_workflow:    {icon:"🔗",  label:"Run Workflow",     cmd:"run_workflow"},
 };
 const meta = t => META[t] || {icon:"❓", label:t, cmd:t};
 
@@ -140,6 +142,7 @@ function stepMain(step){
     case"close_window":     return `Close window "${d.title||"?"}"`;
     case"open_file":        return `Open ${d.path||"?"}`;
     case"play_sound":       return `Play sound: ${d.sound||"default"}`;
+    case"run_workflow":     return `Run workflow: ${d.file||"(none)"}`;
     default: return JSON.stringify(d);
   }
 }
@@ -264,15 +267,16 @@ function renderCards(){
       }
     }
 
-    // Region crop as hero image; click opens full screenshot
+    // Region crop as hero image; click opens full screenshot via index lookup
+    // (never embed large base64 in onclick — it bloats the DOM and can stall rendering)
     let thumbHtml="";
     if(step.type==="click"){
-      const full   = d.screenshot_full || d.screenshot;
       const region = d.screenshot_region || d.screenshot;
       if(region){
         thumbHtml=`<img class="step-thumb step-thumb--region" src="data:image/jpeg;base64,${region}" alt="" `
-          +`onclick="showLightbox('${full||region}')" title="Click to view full screenshot">`;
-      } else {
+          +`data-idx="${i}" onclick="openStepPhoto(${i})" title="Click to view full screenshot">`;
+      } else if(d.screenshot_full || d.screenshot_region || d.screenshot){
+        // Full exists but no region yet (background thread still running)
         thumbHtml=`<div class="thumb-spinner">⏳</div>`;
       }
     }
@@ -397,9 +401,13 @@ function updateButtons(){
   btnSave.disabled = !hasSteps;
   btnSave.classList.toggle("unsaved", S.dirty && hasSteps);
   document.title = (S.dirty && hasSteps ? "● " : "") + "AutoFlow";
-  document.getElementById("btn-export").disabled = !hasSteps;
-  document.getElementById("btn-script").disabled = !hasSteps;
-  document.getElementById("btn-zip").disabled    = !hasSteps;
+  document.getElementById("btn-export").disabled   = !hasSteps;
+  document.getElementById("btn-script").disabled   = !hasSteps;
+  document.getElementById("btn-zip").disabled      = !hasSteps;
+  const btnSched = document.getElementById("btn-schedule");
+  const btnAi    = document.getElementById("btn-ai");
+  if(btnSched) btnSched.disabled = !hasSteps || r;
+  if(btnAi)    btnAi.disabled    = !hasSteps || r;
 }
 
 // ── Record ────────────────────────────────────────────────────────────
@@ -579,35 +587,91 @@ async function saveWorkflow(){
 }
 
 async function loadWFList(){
-  const r=await fetch("/api/workflows").then(x=>x.json());
+  const r=await fetch("/api/workflows").then(x=>x.json()).catch(()=>({ok:false,workflows:[]}));
   const list=document.getElementById("wf-list");
   list.innerHTML="";
-  if(!r.ok||!r.workflows.length){list.innerHTML='<div class="empty-hint">No saved workflows yet.</div>';return;}
+  if(!r.ok||!r.workflows||!r.workflows.length){
+    list.innerHTML='<div class="empty-hint">No saved workflows yet.</div>';return;
+  }
   r.workflows.forEach(wf=>{
     const el=document.createElement("div");
     el.className="wf-item"+(S.activeWF===wf.file?" active":"");
+    const delBtn = document.createElement("button");
+    delBtn.className="wf-del";
+    delBtn.title="Click once to arm, click again to confirm delete";
+    delBtn.textContent="✕";
+    let armed=false, armTimer=null;
+
+    delBtn.addEventListener("click", async e=>{
+      e.stopPropagation();
+      if(!armed){
+        // First click: arm (button turns red, shows "Delete?" for 3.5 s)
+        armed=true;
+        delBtn.textContent="Delete?";
+        delBtn.classList.add("armed");
+        armTimer=setTimeout(()=>{ armed=false; delBtn.textContent="✕"; delBtn.classList.remove("armed"); }, 3500);
+      } else {
+        // Second click confirmed — execute
+        clearTimeout(armTimer);
+        delBtn.textContent="…"; delBtn.disabled=true;
+        try {
+          const resp = await fetch('/api/workflows/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({file: wf.file})});
+          // Server always returns HTTP 200; the JSON body carries the real result.
+          // Do NOT rely on resp.ok alone — also check data.ok.
+          const data = await resp.json().catch(()=>null);
+          if(!data || !data.ok){
+            const msg = data?.error || `HTTP ${resp.status}`;
+            toast(`Delete failed: ${msg}`);
+            await loadWFList();
+            return;
+          }
+          // Confirmed deletion — update client state
+          if(S.activeWF===wf.file){
+            S.activeWF=null; S.steps=[]; S.variables={}; S.playStartIdx=0;
+            document.getElementById("wf-name").value="";
+            S.dirty=false; render(); renderVariables(); setStatus("Workflow deleted");
+          }
+          await loadWFList();
+          toast(`Deleted "${wf.name}"`);
+        } catch(err){
+          toast(`Delete error: ${err.message||err}`);
+          await loadWFList();
+        }
+      }
+    });
+
     el.innerHTML=`<div class="wf-n" title="${esc(wf.name)}">${esc(wf.name)}</div>
-      <div class="wf-c">${wf.steps}</div>
-      <button class="wf-del" onclick="delWF('${esc(wf.file)}',event)">✕</button>`;
-    el.addEventListener("click",()=>openWF(wf.file,wf.name));
+      <div class="wf-c">${wf.steps} step${wf.steps===1?'':"s"}</div>`;
+    el.appendChild(delBtn);
+    el.addEventListener("click", ()=> openWF(wf.file, wf.name));
     list.appendChild(el);
   });
 }
 
+async function execDelWF(file){
+  try{
+    const resp = await fetch('/api/workflows/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({file})});
+    const data = await resp.json().catch(()=>null);
+    if(!data||!data.ok){ toast("Delete failed: "+(data?.error||`HTTP ${resp.status}`)); await loadWFList(); return; }
+    if(S.activeWF===file){
+      S.activeWF=null; S.steps=[]; S.variables={}; S.playStartIdx=0;
+      document.getElementById("wf-name").value="";
+      S.dirty=false; render(); renderVariables(); setStatus("Workflow deleted");
+    }
+    await loadWFList();
+    toast(`Deleted "${file}"`);
+  }catch(e){ toast(`Delete error: ${e.message||e}`); await loadWFList(); }
+}
+
+const delWF=(file,e)=>{ if(e) e.stopPropagation(); execDelWF(file); };
+
 async function openWF(file,name){
-  const r=await fetch(`/api/workflows/${encodeURIComponent(file)}`).then(x=>x.json());
+  const r=await fetch('/api/workflows/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file})}).then(x=>x.json());
   if(!r.ok){toast("Load failed");return;}
   S.steps=r.workflow.steps||[]; S.variables=r.workflow.variables||{};
   S.activeWF=file; S.playStartIdx=0;
   document.getElementById("wf-name").value=name;
   S.dirty=false; render(); renderVariables(); setStatus(`Opened "${name}"`); toast(`Loaded "${name}"`); loadWFList();
-}
-
-async function delWF(file,e){
-  e.stopPropagation();
-  await fetch(`/api/workflows/${encodeURIComponent(file)}`,{method:"DELETE"});
-  if(S.activeWF===file){S.activeWF=null;S.steps=[];S.variables={};S.playStartIdx=0;render();}
-  loadWFList(); toast("Deleted");
 }
 
 function newWorkflow(){
@@ -785,6 +849,7 @@ const DEFAULTS={
   close_window:    {title:"", ignore_missing:true},
   open_file:       {path:""},
   play_sound:      {sound:"default"},
+  run_workflow:    {file:""},
 };
 
 function addStep(type){
@@ -941,6 +1006,11 @@ const FIELDS={
       <option ${_d("sound")==="info"?"selected":""}>info</option>
       <option ${_d("sound")==="warning"?"selected":""}>warning</option>
       <option ${_d("sound")==="error"?"selected":""}>error</option></select></div>`,
+  run_workflow: () => `
+    <div class="field"><label>Workflow Name</label>
+      <input id="ef-wf-file" type="text" value="${_d('file','')}" placeholder="Untitled (without .json)">
+      <div class="field-hint">The saved workflow name to run as a sub-task.</div>
+    </div>`,
 };
 
 function editStep(idx){
@@ -1038,6 +1108,9 @@ function saveEdit(){
     case"play_sound":
       step.data.sound=g("ef-sound");
       break;
+    case"run_workflow":
+      step.data.file=g("ef-wf-file").trim();
+      break;
     default: try{step.data=JSON.parse(g("ef-json"));}catch{}break;
   }
   // Save SOP note — universal for all step types
@@ -1050,6 +1123,12 @@ function saveEdit(){
 function closeModal(){ document.getElementById("modal-overlay").classList.remove("open"); _ei=-1; }
 
 // ── Lightbox ──────────────────────────────────────────────────────────
+function openStepPhoto(idx){
+  const d=(S.steps[idx]||{}).data||{};
+  const src=d.screenshot_full||d.screenshot_region||d.screenshot;
+  if(src) showLightbox(src);
+}
+
 function showLightbox(b64){
   document.getElementById("lightbox-img").src="data:image/jpeg;base64,"+b64;
   document.getElementById("lightbox").classList.add("open");
@@ -1080,7 +1159,7 @@ function handleNoteKey(event, idx, el){
 // ── Collapsible sidebar sections ────────────────────────────────────────────
 // Bump PAL_VER when the default collapsed-state changes so stale localStorage
 // is ignored and users get the new defaults on the next launch.
-const PAL_VER = 2;
+const PAL_VER = 3;
 
 function toggleSection(id) {
   const sec = document.getElementById(id);
@@ -1100,7 +1179,7 @@ function toggleSection(id) {
 function restorePalState() {
   try {
     // Defaults: collapse everything except the Workflows list.
-    const defaults = { "sec-addstep": true, "sec-automation": true, "sec-filesweb": true, "sec-settings": true };
+    const defaults = { "sec-workflows": false, "sec-addstep": true, "sec-automation": true, "sec-filesweb": true, "sec-settings": true };
     const savedVer = parseInt(localStorage.getItem("palSectionsV") || "0");
     let state = defaults;
     if (savedVer >= PAL_VER) {
@@ -1115,18 +1194,26 @@ function restorePalState() {
 }
 
 function loadSettings() {
-  // Read from localStorage — no external file needed
-  const mode = localStorage.getItem("screenshotMode") || "all";
-  const el = document.getElementById(mode === "active" ? "ss-active" : "ss-all");
+  const mode = localStorage.getItem("screenshotMode") || "auto";
+  const mon  = parseInt(localStorage.getItem("screenshotMonitor") || "0");
+  const el = document.getElementById("ss-" + mode);
   if (el) el.checked = true;
-  // Push to server memory so the recorder picks it up immediately
-  fetch("/api/settings", {method:"PATCH", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({screenshot_mode: mode})}).catch(()=>{});
+  const midx = document.getElementById("ss-monitor-idx");
+  if (midx) midx.value = mon;
+  fetch("/api/settings", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({screenshot_mode: mode, screenshot_monitor: mon})}).catch(()=>{});
 }
 function saveScreenshotMode(val) {
   localStorage.setItem("screenshotMode", val);
-  fetch("/api/settings", {method:"PATCH", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({screenshot_mode: val})}).catch(()=>{});
+  const mon = parseInt(localStorage.getItem("screenshotMonitor") || "0");
+  fetch("/api/settings", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({screenshot_mode: val, screenshot_monitor: mon})}).catch(()=>{});
+}
+function saveScreenshotMonitor(val) {
+  localStorage.setItem("screenshotMonitor", val);
+  const mode = localStorage.getItem("screenshotMode") || "auto";
+  fetch("/api/settings", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({screenshot_mode: mode, screenshot_monitor: val})}).catch(()=>{});
 }
 
 document.addEventListener("keydown", e => {
@@ -1137,5 +1224,47 @@ document.addEventListener("keydown", e => {
   if (e.ctrlKey && e.key === "s") { e.preventDefault(); if (S.steps.length) saveWorkflow(); }
   if (e.key === "Escape") { if (S.playing || S.recording) stopPlayback(); }
 });
+
+// ── AI step naming ────────────────────────────────────────────────────────────
+async function aiNameSteps(){
+  if(!S.steps.length){toast("No steps to name");return;}
+  const btn=document.getElementById("btn-ai");
+  if(btn){btn.disabled=true;btn.textContent="✨ Naming...";}
+  let named=0, failed=0;
+  for(let i=0;i<S.steps.length;i++){
+    const s=S.steps[i];
+    if(s.type!=="click"&&s.type!=="navigate"&&s.type!=="type"&&s.type!=="hotkey") continue;
+    if(s.note&&s.note.trim()&&!s.note.startsWith("Auto-detected")) continue; // skip hand-written notes
+    try{
+      const r=await fetch("/api/ai/describe",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({type:s.type, data:s.data})
+      }).then(x=>x.json());
+      if(r.ok&&r.description){s.note=r.description;named++;}
+      else failed++;
+    }catch{failed++;}
+  }
+  if(named){S.dirty=true; render();}
+  if(btn){btn.disabled=false;btn.textContent="✨ AI Names";}
+  if(!named&&failed>0) toast("Ollama not available — start it with 'ollama serve'",4000);
+  else toast(`Named ${named} step${named===1?"":"s"}`);
+}
+
+// ── Schedule export ────────────────────────────────────────────────────────────
+async function exportSchedule(){
+  if(!S.steps.length){toast("No steps to schedule");return;}
+  const name=document.getElementById("wf-name").value.trim()||"Workflow";
+  const r=await fetch("/api/export/schedule",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,steps:S.steps,variables:S.variables,created:Date.now()/1000})
+  });
+  if(!r.ok){toast("Schedule export failed");return;}
+  const blob=await r.blob();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${name}_schedule.zip`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("Schedule ZIP downloaded — import schedule.xml into Windows Task Scheduler");
+}
 
 window.addEventListener("DOMContentLoaded",()=>{ restorePalState(); render(); renderVariables(); updateSpeed(); loadWFList(); loadSettings(); setStatus("Ready"); });
