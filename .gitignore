@@ -1,36 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-
-# Virtual environment
-.venv/
-venv/
-env/
-
-# PyInstaller
-build/
+/target
 dist/
-*.spec.bak
-
-# Runtime output
-autoflow.log
-autoflow_settings.json
-
-# User workflows (stored locally, not committed)
-workflows/*.json
-
-# IDE / OS
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Temp / test output
-*.tmp
-*.bak
+*.exe
+Cargo.lock
+__pycache__/
+*.pyc
+*.spec
+build/
