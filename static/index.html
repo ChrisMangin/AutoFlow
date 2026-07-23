@@ -35,9 +35,11 @@
   <button id="btn-step"      class="btn btn-info"    onclick="stepPlayback()"    style="display:none"  title="Step through — click a card first to start from that step">⏭ Step</button>
   <button id="btn-stop"      class="btn btn-danger"  onclick="stopPlayback()"   disabled>■ Stop</button>
   <div class="sep"></div>
-  <button id="btn-export"    class="btn btn-ghost"   onclick="exportPDF()"    disabled>📄 PDF</button>
-  <button id="btn-script"    class="btn btn-ghost"   onclick="exportScript()" disabled title="Export as standalone Python script (.py)">🐍 Script</button>
-  <button id="btn-zip"       class="btn btn-ghost"   onclick="exportZip()"    disabled title="Export as runnable ZIP (script + launcher batch — share with anyone)">📦 ZIP</button>
+  <button id="btn-export"    class="btn btn-ghost"   onclick="exportPDF()"        disabled>📄 PDF</button>
+  <button id="btn-script"    class="btn btn-ghost"   onclick="exportScript()"     disabled title="Export as standalone Python script (.py)">🐍 Script</button>
+  <button id="btn-zip"       class="btn btn-ghost"   onclick="exportZip()"        disabled title="Export as runnable ZIP — share with anyone">📦 ZIP</button>
+  <button id="btn-schedule"  class="btn btn-ghost"   onclick="exportSchedule()"   disabled title="Export as Windows Task Scheduler package — run on a timer automatically">⏰ Schedule</button>
+  <button id="btn-ai"        class="btn btn-ghost"   onclick="aiNameSteps()"      disabled title="Use local AI (Ollama) to generate plain-English descriptions for each step">✨ AI Names</button>
   <div class="sep"></div>
   <div class="view-toggle">
     <button class="vt-btn active" id="vt-cards" onclick="setView('cards')">⊞ Cards</button>
@@ -107,6 +109,7 @@
           <button class="p-btn" onclick="addStep('get_clipboard')">   <span class="p-icon">📋</span>Get Clip</button>
           <button class="p-btn" onclick="addStep('set_clipboard')">   <span class="p-icon">📌</span>Set Clip</button>
           <button class="p-btn" onclick="addStep('image_click')">     <span class="p-icon">🖼️</span>Img Click</button>
+          <button class="p-btn" onclick="addStep('run_workflow')">   <span class="p-icon">🔗</span>Run WF</button>
           <button class="p-btn" onclick="addStep('wait_for_window')"> <span class="p-icon">🪟</span>Wait Window</button>
         </div>
       </div>
@@ -136,15 +139,21 @@
           <span>&#9881;&#65039; Settings</span><span class="pal-chevron">&#9662;</span>
         </button>
         <div class="pal-body" style="padding:8px 10px;">
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Screenshot capture</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;">Screenshots</div>
           <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
+              <input type="radio" name="ss-mode" value="auto" id="ss-auto" onchange="saveScreenshotMode(this.value)">
+              <span>Auto <span style="color:var(--text-dim);font-size:11px;">— screen where action happened</span></span>
+            </label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
               <input type="radio" name="ss-mode" value="all" id="ss-all" onchange="saveScreenshotMode(this.value)">
               <span>All screens</span>
             </label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;">
-              <input type="radio" name="ss-mode" value="active" id="ss-active" onchange="saveScreenshotMode(this.value)">
-              <span>Active screen only <span style="color:var(--text-dim);font-size:11px;">(better for HiDPI)</span></span>
+              <input type="radio" name="ss-mode" value="manual" id="ss-manual" onchange="saveScreenshotMode(this.value)">
+              <span>Manual — screen&nbsp;<input type="number" id="ss-monitor-idx" min="0" max="9" value="0"
+                style="width:42px;padding:1px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;color:var(--text);font-size:12px;"
+                onchange="saveScreenshotMonitor(parseInt(this.value)||0)" onclick="document.getElementById('ss-manual').checked=true;saveScreenshotMode('manual')"></span>
             </label>
           </div>
         </div>
@@ -226,7 +235,7 @@
 <div id="toast"></div>
 
 <input type="file" id="import-input" accept=".py,.json" style="display:none" onchange="onImportFile(event)">
-<script src="socket.io.min.js"></script>
+<script src="ws.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
