@@ -516,3 +516,13 @@ body{
 .note-field{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
 .label-hint{font-size:11px;color:var(--text-muted);font-weight:normal;margin-left:5px}
 
+
+/* ── Workflow delete button (arm → confirm two-click) ─────────────── */
+.wf-del.armed {
+  background: var(--danger) !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  padding: 0 5px !important;
+  min-width: 48px;
+}
+.wf-del.armed:hover { background: #ff5555 !important; }
